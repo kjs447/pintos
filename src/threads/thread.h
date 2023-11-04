@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include <threads/synch.h>
+#include <devices/timer.h>
 
 struct file;
 
@@ -95,6 +96,9 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+    /* TODO prj3: timer elem for each thread */
+    struct timer_node timer;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

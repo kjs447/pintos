@@ -30,12 +30,32 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
+/* TODO prj3: timer node helper function. */
+int64_t get_ticks_from_elem(struct list_elem* elem) {
+    return ((struct timer_node*)((char*)elem + 
+        ((char*)NULL - (char*)(&(((struct timer_node*)NULL)->elem)))))->ticks;
+}
+
+struct thread* get_thread_from_telem(struct list_elem* elem) {
+    return (struct thread*)((char*)elem + 
+        ((char*)NULL - (char*)(&(((struct thread*)NULL)->timer.elem))));
+}
+
+bool tick_less (const struct list_elem *a,
+                const struct list_elem *b,
+                void *aux UNUSED) {
+  return get_ticks_from_elem(a) < get_ticks_from_elem(b);
+}
+
+struct list timer_list;
+
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
 timer_init (void) 
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
+  list_init(&timer_list); // TODO prj3: timer list initialization
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
 
@@ -92,8 +112,16 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  /*while (timer_elapsed (start) < ticks) 
+    thread_yield ();*/
+  /* TODO prj3: enqueue into timer list */
+  if(ticks <= 0) return;
+  struct thread* th = thread_current();
+  th->timer.ticks = start + ticks;
+  enum intr_level old_level = intr_disable ();
+  list_insert_ordered(&timer_list, &th->timer.elem, tick_less, NULL);
+  thread_block();
+  intr_set_level (old_level);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -172,6 +200,17 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  /* TODO prj3: calc ticks and unblock threads whose time is over */
+  enum intr_level old_level = intr_disable ();
+  while(!list_empty(&timer_list)) {
+    struct list_elem* le = list_front(&timer_list);
+    if(get_ticks_from_elem(le) <= ticks) {
+      thread_unblock(get_thread_from_telem(list_pop_front(&timer_list)));
+      continue;
+    }
+    break;
+  }
+  intr_set_level (old_level);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -244,3 +283,4 @@ real_time_delay (int64_t num, int32_t denom)
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
 }
+
