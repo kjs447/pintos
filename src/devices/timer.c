@@ -44,10 +44,7 @@ struct thread* get_thread_from_telem(struct list_elem* elem) {
 bool tick_less (const struct list_elem *a,
                 const struct list_elem *b,
                 void *aux UNUSED) {
-  if(get_ticks_from_elem(a) != get_ticks_from_elem(b))
-    return get_ticks_from_elem(a) < get_ticks_from_elem(b);
-  else
-    return get_thread_from_telem(a)->priority > get_thread_from_telem(b)->priority; // prj3: give priority to alarm
+  return get_ticks_from_elem(a) < get_ticks_from_elem(b);
 }
 
 struct list timer_list;
