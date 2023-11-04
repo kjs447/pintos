@@ -30,7 +30,7 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
-/* TODO prj3: timer node helper function. */
+/* prj3: timer node helper function. */
 int64_t get_ticks_from_elem(struct list_elem* elem) {
     return ((struct timer_node*)((char*)elem + 
         ((char*)NULL - (char*)(&(((struct timer_node*)NULL)->elem)))))->ticks;
@@ -55,7 +55,7 @@ void
 timer_init (void) 
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
-  list_init(&timer_list); // TODO prj3: timer list initialization
+  list_init(&timer_list); // prj3: timer list initialization
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
 
@@ -114,7 +114,7 @@ timer_sleep (int64_t ticks)
   ASSERT (intr_get_level () == INTR_ON);
   /*while (timer_elapsed (start) < ticks) 
     thread_yield ();*/
-  /* TODO prj3: enqueue into timer list */
+  /* prj3: enqueue into timer list */
   if(ticks <= 0) return;
   struct thread* th = thread_current();
   th->timer.ticks = start + ticks;
@@ -200,7 +200,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  /* TODO prj3: calc ticks and unblock threads whose time is over */
+  /* prj3: calc ticks and unblock threads whose time is over */
   enum intr_level old_level = intr_disable ();
   while(!list_empty(&timer_list)) {
     struct list_elem* le = list_front(&timer_list);
