@@ -17,7 +17,7 @@ extern bool thread_mlfqs;
 
 /* Multi-level Queue. */
 struct multi_queue {
-    int highest_priority;               /* Highest priority among threads. */
+    int highest_priority;
     struct list queue[64];              /* Multi-Level Queue. */
 };
 
