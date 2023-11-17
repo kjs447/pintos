@@ -353,7 +353,6 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  int old_priority = thread_current()->priority;
   thread_current ()->priority = new_priority;
   thread_yield();
 }
@@ -521,10 +520,19 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void) 
 {
-  if (mq_empty (&ready_list))
+  // prj3: pop after empty is inefficient!
+  int priority;
+  struct list_elem* e = mq_pop_high_front (&ready_list, &priority);
+  if(e) {
+    struct thread* res = list_entry (e, struct thread, elem);
+    if(thread_prior_aging) {
+      // prj3: if aging is turned on, saved priority may be different from
+      // the priority of the queue where the thread was. So renew priority.
+      res->priority = priority;
+    }
+    return res;
+  } else
     return idle_thread;
-  else
-    return list_entry (mq_pop_high_front (&ready_list), struct thread, elem);
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -711,11 +719,13 @@ remove_fd_elem(int fd) {
 
 #ifndef USERPROG
 static void thread_aging(void) {
-  for(int p = PRI_MAX - 2; p >= PRI_MIN; p--)
-    list_merge(ready_list.queue + PRI_MAX - 1, ready_list.queue + p);
+  /*enum intr_level old_level = intr_disable();
+  for(int p = PRI_MAX - 1; p >= PRI_MIN; p--)
+    list_merge(ready_list.queue + p + 1, ready_list.queue + p);
   for(struct list_elem* e = list_begin(ready_list.queue + PRI_MAX - 1);
     e != list_begin(ready_list.queue + PRI_MAX - 1);
     e = list_next(e))
     list_entry(e, struct thread, elem)->priority = PRI_MAX;
+  intr_set_level(old_level);*/
 }
 #endif
