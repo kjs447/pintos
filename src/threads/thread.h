@@ -6,6 +6,12 @@
 #include <stdint.h>
 #include <threads/synch.h>
 #include <devices/timer.h>
+#include "threads/synch.h" // prj3
+
+#ifndef USERPROG
+// prj3
+extern bool thread_prior_aging;
+#endif
 
 struct file;
 
@@ -165,15 +171,10 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 /* TODO: thread list travasal, get member from another member*/
-struct list_elem* thread_list_begin(void);
-struct list_elem* thread_list_end(void);
 struct list_elem* thread_list_rbegin(void);
 struct list_elem* thread_list_rend(void);
 
-struct thread* get_thread_from_allelem(struct list_elem* allelem);
-
 #ifdef USERPROG
-struct thread* get_thread_from_childelem(struct list_elem* childelem);
 int get_new_fd(struct list* fd_list);
 void fd_create(int fd, struct file* f, struct list* fd_list);
 struct file* get_file_from_fd(int fd);

@@ -11,7 +11,6 @@
 #include "threads/intr-stubs.h"
 #include "threads/palloc.h"
 #include "threads/switch.h"
-#include "threads/synch.h"
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -58,6 +57,11 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
+#ifndef USERPROG
+// prj3
+bool thread_prior_aging;
+#endif
+
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
@@ -74,6 +78,9 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+#ifndef USERPROG
+static void thread_aging(void);
+#endif
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -141,6 +148,12 @@ thread_tick (void)
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
+
+#ifndef USERPROG
+  //prj3
+  if(thread_prior_aging)
+    thread_aging ();
+#endif
 }
 
 /* Prints thread statistics. */
@@ -604,16 +617,6 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 /* TODO: traversal thread list */
 struct list_elem*
-thread_list_begin() {
-  return list_begin(&all_list);
-}
-
-struct list_elem*
-thread_list_end() {
-  return list_end(&all_list);
-}
-
-struct list_elem*
 thread_list_rbegin() {
   return list_rbegin(&all_list);
 }
@@ -623,17 +626,7 @@ thread_list_rend() {
   return list_rend(&all_list);
 }
 
-/* TODO: getter from allelem */
-struct thread*
-get_thread_from_allelem(struct list_elem* allelem) {
-  return (struct thread*)((char*)allelem + ((char*)&idle_thread->tid - (char*)&idle_thread->allelem));
-}
-
 #ifdef USERPROG
-struct thread*
-get_thread_from_childelem(struct list_elem* childelem) {
-  return (struct thread*)((char*)childelem + ((char*)&idle_thread->tid - (char*)&idle_thread->child_elem));
-}
 
 struct fd_elem {
    int fd;
@@ -649,7 +642,7 @@ get_fd_elem(struct list_elem* list_elem) {
 
 void
 free_fd_elem(struct list_elem* list_elem) {
-  struct fd_elem* e = get_fd_elem(list_elem);
+  struct fd_elem* e = list_entry(list_elem, struct fd_elem, elem);
   file_close(e->file);
   free(e);
 }
@@ -659,7 +652,7 @@ get_new_fd(struct list* fd_list) {
   int i;
   struct list_elem* p = list_begin(fd_list);
   for(i = 2; i < 128; i++) {
-    if(i == get_fd_elem(p)->fd) {
+    if(i == list_entry(p, struct fd_elem, elem)->fd) {
       p = list_next(p);
       continue;
     }
@@ -672,7 +665,8 @@ static bool
 id_less_func (const struct list_elem *a,
   const struct list_elem *b,
   void *aux UNUSED) {
-  return *(const int*)get_fd_elem(a) < *(const int*)get_fd_elem(b); 
+  return list_entry(a, struct fd_elem, elem)->fd 
+    < list_entry(b, struct fd_elem, elem)->fd; 
 }
 
 void
@@ -690,11 +684,11 @@ get_file_from_fd(int fd) {
   for(p = list_begin(&th->fd_list);
     p != list_end(&th->fd_list);
     p = list_next(p))
-    if(get_fd_elem(p)->fd == fd)
+    if(list_entry(p, struct fd_elem, elem)->fd == fd)
       break;
   if(p == list_end(&th->fd_list))
     return NULL;
-  return get_fd_elem(p)->file;
+  return list_entry(p, struct fd_elem, elem)->file;
 }
 
 struct file*
@@ -704,14 +698,25 @@ remove_fd_elem(int fd) {
   for(p = list_begin(&th->fd_list);
     p != list_end(&th->fd_list);
     p = list_next(p))
-    if(get_fd_elem(p)->fd == fd)
+    if(list_entry(p, struct fd_elem, elem)->fd == fd)
       break;
   if(p == list_end(&th->fd_list))
     return NULL;
-  struct file* f = get_fd_elem(p)->file;
+  struct file* f = list_entry(p, struct fd_elem, elem)->file;
   list_remove(p);
-  free(get_fd_elem(p));
+  free(list_entry(p, struct fd_elem, elem));
   return f;
 }
 
+#endif
+
+#ifndef USERPROG
+static void thread_aging(void) {
+  for(int p = PRI_MAX - 2; p >= PRI_MIN; p--)
+    list_merge(ready_list.queue + PRI_MAX - 1, ready_list.queue + p);
+  for(struct list_elem* e = list_begin(ready_list.queue + PRI_MAX - 1);
+    e != list_begin(ready_list.queue + PRI_MAX - 1);
+    e = list_next(e))
+    list_entry(e, struct thread, elem)->priority = PRI_MAX;
+}
 #endif
