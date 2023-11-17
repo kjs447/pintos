@@ -47,7 +47,7 @@ sema_init (struct semaphore *sema, unsigned value)
   ASSERT (sema != NULL);
 
   sema->value = value;
-  list_init (&sema->waiters);
+  mq_init (&sema->waiters); // prj3: multi-level queue support
 }
 
 /* Down or "P" operation on a semaphore.  Waits for SEMA's value
@@ -68,7 +68,8 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
+      mq_push_back (&sema->waiters, &thread_current ()->elem, thread_current()->priority);
+      // prj3: multi-level queue support
       thread_block ();
     }
   sema->value--;
@@ -113,11 +114,16 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
+  bool empty;
+  if (!(empty = mq_empty (&sema->waiters)))
+    thread_unblock (list_entry (mq_pop_high_front (&sema->waiters),
                                 struct thread, elem));
+    // prj3: multi-level queue support
   sema->value++;
   intr_set_level (old_level);
+  if(!empty)
+    thread_yield();
+  // prj3: yield by priority
 }
 
 static void sema_test_helper (void *sema_);

@@ -3,12 +3,13 @@
 
 #include <list.h>
 #include <stdbool.h>
+#include <multi_queue.h> // prj3: multi-level queue
 
 /* A counting semaphore. */
 struct semaphore 
   {
     unsigned value;             /* Current value. */
-    struct list waiters;        /* List of waiting threads. */
+    struct multi_queue waiters;        /* List of waiting threads. prj3: multi-level queue */
   };
 
 void sema_init (struct semaphore *, unsigned value);
