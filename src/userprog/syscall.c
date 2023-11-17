@@ -72,7 +72,7 @@ exit(int status) {
   for(childp = list_begin(&th->child_list);
     childp != list_end(&th->child_list);
     childp = list_next(childp))
-    get_thread_from_childelem(childp)->parent = NULL;
+    list_entry(childp, struct thread, child_elem)->parent = NULL;
 
   th->terminated_by_exit = true;
   th->exit_status = status;

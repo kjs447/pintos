@@ -52,8 +52,8 @@ process_execute (const char *file_name)
   struct thread* new_th;
   for(listp = thread_list_rbegin();
     listp != thread_list_rend(); listp = list_prev(listp)) {
-    if(get_thread_from_allelem(listp)->tid == tid) {
-      new_th = get_thread_from_allelem(listp);
+    if(list_entry(listp, struct thread, allelem)->tid == tid) {
+      new_th = list_entry(listp, struct thread, allelem);
       break;
     }
   }
@@ -125,14 +125,14 @@ process_wait (tid_t child_tid)
   for(childp = list_begin(&this->child_list);
     childp != list_end(&this->child_list);
     childp = list_next(childp)) {
-    if(get_thread_from_childelem(childp)->tid == child_tid)
+    if(list_entry(childp, struct thread, child_elem)->tid == child_tid)
       break;
   }
 
   if(childp == list_end(&this->child_list))
     return -1;
 
-  struct thread* child = get_thread_from_childelem(childp);
+  struct thread* child = list_entry(childp, struct thread, child_elem);
   sema_down(&child->to_wait);
   
   list_remove(childp);
