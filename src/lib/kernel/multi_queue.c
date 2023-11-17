@@ -1,5 +1,4 @@
 #include "multi_queue.h"
-#include "lib/debug.h"
 
 /*  Init multi-level queue.  */
 void mq_init(struct multi_queue* mq) {
