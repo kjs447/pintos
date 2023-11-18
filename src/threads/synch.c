@@ -68,7 +68,9 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      mq_push_back (&sema->waiters, &thread_current ()->elem, thread_current()->priority);
+      if(thread_prior_aging)
+        thread_current()->enqueue_tick = get_aging_tick();
+      mq_push_back (&sema->waiters, &thread_current ()->elem, priority_gt);
       // prj3: multi-level queue support
       thread_block ();
     }
@@ -114,14 +116,12 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  struct list_elem* e = mq_pop_high_front (&sema->waiters, NULL);
-  if(e)
-    thread_unblock(list_entry(e, struct thread, elem));
-    // prj3: multi-level queue support. pop after empty is inefficient
+  if (!mq_empty (&sema->waiters)) 
+    thread_unblock (list_entry (mq_pop_high_front (&sema->waiters),
+                                struct thread, elem));
   sema->value++;
   intr_set_level (old_level);
-  if(e)
-    thread_yield();
+  thread_yield();
   // prj3: yield by priority
 }
 

@@ -52,6 +52,7 @@ struct kernel_thread_frame
 static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
+static long long aging_ticks;   /* prj3: # of timer ticks in aging.*/
 
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
@@ -255,7 +256,9 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  mq_push_back (&ready_list, &t->elem, t->priority);
+  if(thread_prior_aging)
+    thread_current()->enqueue_tick = get_aging_tick();
+  mq_push_back (&ready_list, &t->elem, priority_gt);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -325,8 +328,11 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
-    mq_push_back (&ready_list, &cur->elem, cur->priority);
+  if (cur != idle_thread) {
+    if(thread_prior_aging)
+        thread_current()->enqueue_tick = get_aging_tick();
+    mq_push_back (&ready_list, &cur->elem, priority_gt);
+  }
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -520,19 +526,10 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void) 
 {
-  // prj3: pop after empty is inefficient!
-  int priority;
-  struct list_elem* e = mq_pop_high_front (&ready_list, &priority);
-  if(e) {
-    struct thread* res = list_entry (e, struct thread, elem);
-    if(thread_prior_aging) {
-      // prj3: if aging is turned on, saved priority may be different from
-      // the priority of the queue where the thread was. So renew priority.
-      res->priority = priority;
-    }
-    return res;
-  } else
+  if (mq_empty (&ready_list))
     return idle_thread;
+  else
+    return list_entry (mq_pop_high_front (&ready_list), struct thread, elem);
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -718,14 +715,30 @@ remove_fd_elem(int fd) {
 #endif
 
 #ifndef USERPROG
+// prj3: aging
 static void thread_aging(void) {
-  /*enum intr_level old_level = intr_disable();
-  for(int p = PRI_MAX - 1; p >= PRI_MIN; p--)
-    list_merge(ready_list.queue + p + 1, ready_list.queue + p);
-  for(struct list_elem* e = list_begin(ready_list.queue + PRI_MAX - 1);
-    e != list_begin(ready_list.queue + PRI_MAX - 1);
-    e = list_next(e))
-    list_entry(e, struct thread, elem)->priority = PRI_MAX;
-  intr_set_level(old_level);*/
+  enum intr_level old_level = intr_disable();
+  ++aging_ticks;
+  intr_set_level(old_level);
 }
 #endif
+
+// prj3: multi-level queue less function
+bool priority_gt (const struct list_elem *a
+    , const struct list_elem *b, void *aux UNUSED) {
+  struct thread* at = list_entry(a, struct thread, elem);
+  struct thread* bt = list_entry(b, struct thread, elem);
+  if (thread_prior_aging)
+    return at->priority - at->enqueue_tick
+      > bt->priority - bt->enqueue_tick;
+  else
+    return at->priority > bt->priority;
+}
+
+// prj3: aging
+long long get_aging_tick(void) {
+  enum intr_level old_level = intr_disable();
+  long long t = aging_ticks;
+  intr_set_level(old_level);
+  return t;
+}

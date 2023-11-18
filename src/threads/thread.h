@@ -106,6 +106,8 @@ struct thread
     /* prj3: timer elem for each thread */
     struct timer_node timer;
 
+    long long enqueue_tick;             /*prj3: when the thread enqueue in aging context*/
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     struct thread* parent;              /* TODO: parent process */
@@ -181,6 +183,13 @@ struct file* get_file_from_fd(int fd);
 struct file* remove_fd_elem(int fd);
 void free_fd_elem(struct list_elem* list_elem);
 #endif
+
+// prj3: multi-level queue less function
+bool priority_gt (const struct list_elem *a
+    , const struct list_elem *b, void *aux);
+
+// prj3: aging
+long long get_aging_tick(void);
 
 
 #endif /* threads/thread.h */
