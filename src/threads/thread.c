@@ -68,6 +68,9 @@ bool thread_prior_aging;
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
+// prj3: bsd scheduler
+static struct fixed_point load_avg;
+
 static void kernel_thread (thread_func *, void *aux);
 
 static void idle (void *aux UNUSED);
@@ -82,6 +85,8 @@ static tid_t allocate_tid (void);
 #ifndef USERPROG
 static void thread_aging(void);
 #endif
+
+void recalculate_load_avg_recent_cpu (void);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -104,6 +109,10 @@ thread_init (void)
   lock_init (&tid_lock);
   mq_init (&ready_list);
   list_init (&all_list);
+
+  // prj3: bsd scheduler
+  if(thread_mlfqs)
+    load_avg = to_fp(0);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -147,8 +156,13 @@ thread_tick (void)
     kernel_ticks++;
 
   /* Enforce preemption. */
-  if (++thread_ticks >= TIME_SLICE)
+  if (++thread_ticks >= TIME_SLICE) {
     intr_yield_on_return ();
+  }
+
+  if(t != idle_thread) {
+    t->recent_cpu = add_int(t->recent_cpu, 1);
+  }
 
 #ifndef USERPROG
   //prj3
@@ -216,9 +230,21 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  /* prj3: inherits nice */
+  if(thread_mlfqs) {
+    if(function == idle) {
+      t->nice = 0;
+      t->recent_cpu = to_fp(0);
+    }
+    else {
+      t->nice = thread_get_nice();
+      t->recent_cpu = thread_current()->recent_cpu;
+    }
+  }
+
   /* Add to run queue. */
   thread_unblock (t);
-  thread_yield();
+  thread_yield(); // prj3: priority yield.
 
   return tid;
 }
@@ -370,35 +396,86 @@ thread_get_priority (void)
   return thread_current ()->priority;
 }
 
+/* Calculate the thread's priority in BSD scheduler. */
+static int
+calculate_bsd_priority (struct thread* t) {
+  enum intr_level old_level = intr_disable();
+  int res = PRI_MAX - to_int(div_int(t->recent_cpu, 4)) - 2 * t->nice;
+  if(res < 0) res = 0;
+  intr_set_level(old_level);
+  return res;
+}
+
+/* Calculate and apply new priority for a thread. */
+static void
+apply_bsd_priority (struct thread* t, void* aux UNUSED) {
+  t->priority = calculate_bsd_priority(t);
+  //printf("New priority: %d\n", t->priority);
+}
+
+/* Calculate and apply new priority per TIME_SLICE */
+void
+all_apply_bsd_priority (void) {
+  enum intr_level old_level = intr_disable();
+  thread_foreach(apply_bsd_priority, NULL);
+  //list_sort(&ready_list.queue, priority_gt, NULL);
+  intr_set_level(old_level);
+}
+
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
-  /* Not yet implemented. */
+  thread_current()->nice = nice;
+  thread_current()->priority = calculate_bsd_priority(thread_current());
+  thread_yield();
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current()->nice;
 }
+
+/* calculate recent_cpu for a thread. */
+static void calc_recent_cpu(struct thread* t, void* aux UNUSED) {
+  struct fixed_point fp = mult_int(load_avg, 2);
+  t->recent_cpu = 
+    add_int(mult(div(fp, add_int(fp, 1)), t->recent_cpu), t->nice);
+  //printf("New recent_cpu: %d + %d/2^15\n", t->recent_cpu.base ^ ((1 << 15) - 1), t->recent_cpu.base & ((1 << 15) - 1));
+}
+
+/* Recalulate load_avg and recent_cpu. */
+void
+recalculate_load_avg_recent_cpu (void) 
+{
+  enum intr_level old_level = intr_disable();
+  load_avg = add(mult(load_avg, div_int(to_fp(59), 60)), 
+    mult_int(div_int(to_fp(1), 60), mq_num(&ready_list) + (thread_current() != idle_thread ? 1 : 0)));
+  thread_foreach(calc_recent_cpu, NULL);
+  intr_set_level(old_level);
+}
+
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  enum intr_level old_level = intr_disable();
+  int res = to_int(mult_int(load_avg, 100));
+  intr_set_level(old_level);
+  return res;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  enum intr_level old_level = intr_disable();
+  int res = to_int(mult_int(thread_current()->recent_cpu, 100));
+  intr_set_level(old_level);
+  return res;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.

@@ -7,6 +7,7 @@
 #include <threads/synch.h>
 #include <devices/timer.h>
 #include "threads/synch.h" // prj3
+#include <fixed_point.h> // prj3
 
 #ifndef USERPROG
 // prj3
@@ -102,11 +103,14 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
     /* prj3: timer elem for each thread */
     struct timer_node timer;
+    /* prj3: when the thread enqueue in aging context*/
+    long long enqueue_tick;
 
-    long long enqueue_tick;             /*prj3: when the thread enqueue in aging context*/
+    /* prj3: bsd scheduler */
+    int nice;
+    struct fixed_point recent_cpu;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -171,6 +175,8 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+void all_apply_bsd_priority (void);
+void recalculate_load_avg_recent_cpu (void);
 
 /* TODO: thread list travasal, get member from another member*/
 struct list_elem* thread_list_rbegin(void);
@@ -190,6 +196,5 @@ bool priority_gt (const struct list_elem *a
 
 // prj3: aging
 long long get_aging_tick(void);
-
 
 #endif /* threads/thread.h */

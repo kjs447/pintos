@@ -201,6 +201,14 @@ timer_interrupt (struct intr_frame *args UNUSED)
     }
     break;
   }
+
+  if(thread_mlfqs) {
+    if(ticks % 4 == 0)
+      all_apply_bsd_priority();
+    if(ticks % TIMER_FREQ == 0) {
+      recalculate_load_avg_recent_cpu();
+    }
+  }
   intr_set_level (old_level);
 }
 
