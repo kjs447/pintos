@@ -12,48 +12,61 @@ struct fixed_point to_fp(int n) {
 
 /* Convert fixed point to integer */
 int to_int(struct fixed_point fp) {
-    if(fp.base >= 0)
-        return (fp.base + F / 2) / F;
-    else
-        return (fp.base - F / 2) / F;
+    return (fp.base + F - 1) / F;
 }
 
 /* fp + fp */
 struct fixed_point add(struct fixed_point a, struct fixed_point b) {
-    return to_fp(a.base + b.base);
+    struct fixed_point fp;
+    fp.base = a.base + b.base;
+    return fp;
 }
 
 /* fp - fp */
 struct fixed_point sub(struct fixed_point a, struct fixed_point b) {
-    return to_fp(a.base - b.base);
+    struct fixed_point fp;
+    fp.base = a.base - b.base;
+    return fp;
 }
 
 /* fp * fp */
 struct fixed_point mult(struct fixed_point a, struct fixed_point b) {
-    return to_fp((int64_t)a.base * b.base / F);
+    struct fixed_point fp;
+    fp.base = (int64_t)a.base * b.base / F;
+    return fp;
 }
 
 /* fp / fp */
 struct fixed_point div(struct fixed_point a, struct fixed_point b) {
-    return to_fp((int64_t)a.base * F / b.base);
+    struct fixed_point fp;
+    fp.base = (int64_t)a.base * F / b.base;
+    return fp;
 }
 
 /* fp + int */
 struct fixed_point add_int(struct fixed_point a, int b) {
-    return to_fp(a.base + b * F);
+    struct fixed_point fp;
+    fp.base = (int64_t)a.base + b * F;
+    return fp;
 }
 
 /* fp - int */
 struct fixed_point sub_int(struct fixed_point a, int b) {
-    return to_fp(a.base + b * F);
+    struct fixed_point fp;
+    fp.base = (int64_t)a.base - b * F;
+    return fp;
 }
 
 /* fp * int */
 struct fixed_point mult_int(struct fixed_point a, int b) {
-    return to_fp(a.base * b);
+    struct fixed_point fp;
+    fp.base = (int64_t)a.base * b;
+    return fp;
 }
 
 /* fp / int */
 struct fixed_point div_int(struct fixed_point a, int b) {
-    return to_fp(a.base / b);
+    struct fixed_point fp;
+    fp.base = (int64_t)a.base / b;
+    return fp;
 }
