@@ -31,20 +31,11 @@ static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
 /* prj3: timer node helper function. */
-int64_t get_ticks_from_elem(struct list_elem* elem) {
-    return ((struct timer_node*)((char*)elem + 
-        ((char*)NULL - (char*)(&(((struct timer_node*)NULL)->elem)))))->ticks;
-}
-
-struct thread* get_thread_from_telem(struct list_elem* elem) {
-    return (struct thread*)((char*)elem + 
-        ((char*)NULL - (char*)(&(((struct thread*)NULL)->timer.elem))));
-}
-
-bool tick_less (const struct list_elem *a,
+static bool tick_less (const struct list_elem *a,
                 const struct list_elem *b,
                 void *aux UNUSED) {
-  return get_ticks_from_elem(a) < get_ticks_from_elem(b);
+  return list_entry(a, struct timer_node, elem)->ticks 
+    < list_entry(b, struct timer_node, elem)->ticks;
 }
 
 struct list timer_list;
@@ -204,8 +195,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
   enum intr_level old_level = intr_disable ();
   while(!list_empty(&timer_list)) {
     struct list_elem* le = list_front(&timer_list);
-    if(get_ticks_from_elem(le) <= ticks) {
-      thread_unblock(get_thread_from_telem(list_pop_front(&timer_list)));
+    if(list_entry(le, struct timer_node, elem)->ticks <= ticks) {
+      thread_unblock(list_entry(list_pop_front(&timer_list), struct thread, timer.elem));
       continue;
     }
     break;

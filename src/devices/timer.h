@@ -33,8 +33,4 @@ struct timer_node {
     struct list_elem elem;
 };
 
-/* prj3: timer node helper function. */
-int64_t get_ticks_from_elem(struct list_elem*);
-struct thread* get_thread_from_telem(struct list_elem*);
-
 #endif /* devices/timer.h */
