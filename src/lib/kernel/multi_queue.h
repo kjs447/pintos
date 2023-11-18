@@ -17,11 +17,13 @@ extern bool thread_mlfqs;
 
 /* Multi-level Queue. */
 struct multi_queue {
+    int num;               /* How many objects in multi-level queue? */
     struct list queue;              /* Multi-Level Queue. */
 };
 
 void mq_init(struct multi_queue*);
 bool mq_empty(struct multi_queue*);
+int mq_num(struct multi_queue*);
 
 struct list_elem* mq_pop_high_front(struct multi_queue*);
 void mq_push_back(struct multi_queue* mq, struct list_elem* e
