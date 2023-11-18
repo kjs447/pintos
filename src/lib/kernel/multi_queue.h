@@ -17,13 +17,15 @@ extern bool thread_mlfqs;
 
 /* Multi-level Queue. */
 struct multi_queue {
-    struct list queue[64];              /* Multi-Level Queue. */
+    struct list queue;              /* Multi-Level Queue. */
 };
 
 void mq_init(struct multi_queue*);
 bool mq_empty(struct multi_queue*);
 
-struct list_elem* mq_pop_high_front(struct multi_queue*, int* priority);
-void mq_push_back(struct multi_queue*, struct list_elem*, int priority);
+struct list_elem* mq_pop_high_front(struct multi_queue*);
+void mq_push_back(struct multi_queue* mq, struct list_elem* e
+    , bool (*priority_gt) (const struct list_elem *a
+    , const struct list_elem *b, void *aux));
 
 #endif /* lib/kernel/multi_queue.h */
