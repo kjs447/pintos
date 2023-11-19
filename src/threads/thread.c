@@ -160,7 +160,7 @@ thread_tick (void)
     intr_yield_on_return ();
   }
 
-  if(t != idle_thread) {
+  if(thread_mlfqs && t != idle_thread) {
     t->recent_cpu = add_int(t->recent_cpu, 1);
   }
 
