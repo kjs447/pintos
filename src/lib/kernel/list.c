@@ -203,14 +203,6 @@ list_splice (struct list_elem *before,
   before->prev = last;
 }
 
-/* prj3: Append SRC to Dest and make SRC empty. */
-void list_merge(struct list* dest, struct list* src) {
-  dest->tail.prev->next = src->head.next;
-  src->head.next->prev = dest->tail.prev;
-  dest->tail.prev = src->tail.prev;
-  list_init(src);
-} 
-
 /* Inserts ELEM at the beginning of LIST, so that it becomes the
    front in LIST. */
 void
