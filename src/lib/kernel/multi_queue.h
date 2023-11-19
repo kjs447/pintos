@@ -7,9 +7,6 @@
 */
 #include "list.h"
 
-/* Flag: is the scheduler of BSD? */
-extern bool thread_mlfqs;
-
 /* Thread priorities. */
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */

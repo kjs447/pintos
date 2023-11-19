@@ -46,27 +46,27 @@ struct fixed_point div(struct fixed_point a, struct fixed_point b) {
 /* fp + int */
 struct fixed_point add_int(struct fixed_point a, int b) {
     struct fixed_point fp;
-    fp.base = (int64_t)a.base + b * F;
+    fp.base = a.base + b * F;
     return fp;
 }
 
 /* fp - int */
 struct fixed_point sub_int(struct fixed_point a, int b) {
     struct fixed_point fp;
-    fp.base = (int64_t)a.base - b * F;
+    fp.base = a.base - b * F;
     return fp;
 }
 
 /* fp * int */
 struct fixed_point mult_int(struct fixed_point a, int b) {
     struct fixed_point fp;
-    fp.base = (int64_t)a.base * b;
+    fp.base = a.base * b;
     return fp;
 }
 
 /* fp / int */
 struct fixed_point div_int(struct fixed_point a, int b) {
     struct fixed_point fp;
-    fp.base = (int64_t)a.base / b;
+    fp.base = a.base / b;
     return fp;
 }
