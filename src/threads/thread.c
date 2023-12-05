@@ -282,8 +282,10 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+#ifndef USERPROG
   if(thread_prior_aging)
     thread_current()->enqueue_tick = get_aging_tick();
+#endif
   mq_push_back (&ready_list, &t->elem, priority_gt);
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -355,8 +357,10 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) {
+#ifndef USERPROG
     if(thread_prior_aging)
         thread_current()->enqueue_tick = get_aging_tick();
+#endif
     mq_push_back (&ready_list, &cur->elem, priority_gt);
   }
   cur->status = THREAD_READY;
@@ -805,10 +809,12 @@ bool priority_gt (const struct list_elem *a
     , const struct list_elem *b, void *aux UNUSED) {
   struct thread* at = list_entry(a, struct thread, elem);
   struct thread* bt = list_entry(b, struct thread, elem);
+#ifndef USERPROG
   if (thread_prior_aging)
     return at->priority - at->enqueue_tick
       > bt->priority - bt->enqueue_tick;
   else
+#endif
     return at->priority > bt->priority;
 }
 

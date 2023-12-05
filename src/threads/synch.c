@@ -68,8 +68,10 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
+#ifndef USERPROG
       if(thread_prior_aging)
         thread_current()->enqueue_tick = get_aging_tick();
+#endif
       mq_push_back (&sema->waiters, &thread_current ()->elem, priority_gt);
       // prj3: multi-level queue support
       thread_block ();
