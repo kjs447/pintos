@@ -57,21 +57,6 @@ void single_pc_init(struct single_pc*);
 void single_pc_producer(struct single_pc*, int);
 int single_pc_consumer(struct single_pc*);
 
-/* TODO prj2: Reader-Writer Problem */
-struct rw_sem 
-  {
-    int rcount;
-    struct lock queue_lock;
-    struct lock rcount_lock;
-    struct semaphore access_sem;
-  };
-
-void rw_sem_init(struct rw_sem*);
-void rw_reader_begin(struct rw_sem*);
-void rw_reader_end(struct rw_sem*);
-void rw_writer_begin(struct rw_sem*);
-void rw_writer_end(struct rw_sem*);
-
 /* Optimization barrier.
 
    The compiler will not reorder operations across an
