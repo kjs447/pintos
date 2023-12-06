@@ -118,7 +118,7 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!mq_empty (&sema->waiters)) 
+  if (!mq_empty (&sema->waiters))
     thread_unblock (list_entry (mq_pop_high_front (&sema->waiters),
                                 struct thread, elem));
   sema->value++;
@@ -258,7 +258,15 @@ struct semaphore_elem
   {
     struct list_elem elem;              /* List element. */
     struct semaphore semaphore;         /* This semaphore. */
+    struct thread* th;                  /* prj3?: lock held by who?*/
   };
+
+static bool th_priority_gt (const struct list_elem *a
+    , const struct list_elem *b, void *aux UNUSED) {
+  struct thread* at = list_entry(a, struct semaphore_elem, elem)->th;
+  struct thread* bt = list_entry(b, struct semaphore_elem, elem)->th;
+  return at->priority > bt->priority;
+}
 
 /* Initializes condition variable COND.  A condition variable
    allows one piece of code to signal a condition and cooperating
@@ -268,7 +276,7 @@ cond_init (struct condition *cond)
 {
   ASSERT (cond != NULL);
 
-  list_init (&cond->waiters);
+  mq_init (&cond->waiters);
 }
 
 /* Atomically releases LOCK and waits for COND to be signaled by
@@ -302,7 +310,8 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  list_push_back (&cond->waiters, &waiter.elem);
+  waiter.th = thread_current();
+  mq_push_back (&cond->waiters, &waiter.elem, th_priority_gt);
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
@@ -323,8 +332,8 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
-  if (!list_empty (&cond->waiters)) 
-    sema_up (&list_entry (list_pop_front (&cond->waiters),
+  if (!mq_empty (&cond->waiters)) 
+    sema_up (&list_entry (mq_pop_high_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
 }
 
@@ -340,7 +349,7 @@ cond_broadcast (struct condition *cond, struct lock *lock)
   ASSERT (cond != NULL);
   ASSERT (lock != NULL);
 
-  while (!list_empty (&cond->waiters))
+  while (!mq_empty (&cond->waiters))
     cond_signal (cond, lock);
 }
 
