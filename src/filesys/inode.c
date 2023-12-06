@@ -37,7 +37,7 @@ struct inode
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-    struct rw_sem rw;                   /* TODO prj2: reader-writer problem to access file */
+    struct lock lock;                   /* TODO prj2: reader-writer problem to access file */
     struct inode_disk data;             /* Inode content. */
   };
 
@@ -138,7 +138,7 @@ inode_open (block_sector_t sector)
   inode->sector = sector;
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
-  rw_sem_init(&inode->rw);
+  lock_init(&inode->lock);
   inode->removed = false;
   block_read (fs_device, inode->sector, &inode->data);
   return inode;
@@ -226,9 +226,9 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
         {
           /* Read full sector directly into caller's buffer. */
-          rw_reader_begin(&inode->rw); /* TODO prj2: reader lock */
+          lock_acquire(&inode->lock); /* TODO prj2: reader lock */
           block_read (fs_device, sector_idx, buffer + bytes_read);
-          rw_reader_end(&inode->rw); /* TODO prj2: reader lock */
+          lock_release(&inode->lock); /* TODO prj2: reader lock */
         }
       else 
         {
@@ -240,9 +240,9 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
               if (bounce == NULL)
                 break;
             }
-          rw_reader_begin(&inode->rw); /* TODO prj2: reader lock */
+          lock_acquire(&inode->lock); /* TODO prj2: reader lock */
           block_read (fs_device, sector_idx, bounce);
-          rw_reader_end(&inode->rw); /* TODO prj2: reader lock */
+          lock_release(&inode->lock); /* TODO prj2: reader lock */
           memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
         }
       
@@ -292,9 +292,9 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
         {
           /* Write full sector directly to disk. */
-          rw_writer_begin(&inode->rw); /* TODO prj2: writer lock */
+          lock_acquire(&inode->lock); /* TODO prj2: writer lock */
           block_write (fs_device, sector_idx, buffer + bytes_written);
-          rw_writer_end(&inode->rw); /* TODO prj2: writer lock */
+          lock_release(&inode->lock); /* TODO prj2: writer lock */
         }
       else 
         {
@@ -310,16 +310,16 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
              we're writing, then we need to read in the sector
              first.  Otherwise we start with a sector of all zeros. */
           if (sector_ofs > 0 || chunk_size < sector_left)  {
-            rw_reader_begin(&inode->rw); /* TODO prj2: reader lock */
+            lock_acquire(&inode->lock); /* TODO prj2: reader lock */
             block_read (fs_device, sector_idx, bounce);
-            rw_reader_end(&inode->rw); /* TODO prj2: reader lock */
+            lock_release(&inode->lock); /* TODO prj2: reader lock */
           }
           else
             memset (bounce, 0, BLOCK_SECTOR_SIZE);
           memcpy (bounce + sector_ofs, buffer + bytes_written, chunk_size);
-          rw_writer_begin(&inode->rw); /* TODO prj2: writer lock */
+          lock_acquire(&inode->lock); /* TODO prj2: writer lock */
           block_write (fs_device, sector_idx, bounce);
-          rw_writer_end(&inode->rw); /* TODO prj2: writer lock */
+          lock_release(&inode->lock); /* TODO prj2: writer lock */
         }
 
       /* Advance. */
@@ -357,6 +357,8 @@ inode_allow_write (struct inode *inode)
 off_t
 inode_length (const struct inode *inode)
 {
+  lock_acquire(&inode->lock);
   int len = inode->data.length;
+  lock_release(&inode->lock);
   return len;
 }
