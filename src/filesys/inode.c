@@ -357,8 +357,6 @@ inode_allow_write (struct inode *inode)
 off_t
 inode_length (const struct inode *inode)
 {
-  lock_acquire(&inode->lock);
   int len = inode->data.length;
-  lock_release(&inode->lock);
   return len;
 }
