@@ -722,12 +722,6 @@ struct fd_elem {
    struct list_elem elem;
 };
 
-static struct fd_elem*
-get_fd_elem(struct list_elem* list_elem) {
-  return (struct fd_elem*)((char*)list_elem 
-    + ((char*)&((struct fd_elem*)NULL)->fd - (char*)&((struct fd_elem*)NULL)->elem));
-}
-
 void
 free_fd_elem(struct list_elem* list_elem) {
   struct fd_elem* e = list_entry(list_elem, struct fd_elem, elem);
