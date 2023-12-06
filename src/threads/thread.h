@@ -14,6 +14,8 @@
 extern bool thread_prior_aging;
 #endif
 
+extern bool idle_made; // prj4: is thread_yield safe and meaningful?
+
 struct file;
 
 /* States in a thread's life cycle. */

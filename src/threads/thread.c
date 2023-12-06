@@ -244,8 +244,8 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-  thread_yield(); // prj3: priority yield.
-
+  if(!intr_context()) // prj3&4: yield by priority if external interrupt is not running.
+    thread_yield();
   return tid;
 }
 
@@ -350,6 +350,7 @@ thread_exit (void)
 void
 thread_yield (void) 
 {
+  if(!idle_made) return; // prj4: thread_yield cannot work safely.
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
@@ -390,7 +391,8 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
-  thread_yield();
+  if(!intr_context()) // prj3&4: yield by priority if external interrupt is not running.
+    thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -432,7 +434,8 @@ thread_set_nice (int nice)
 {
   thread_current()->nice = nice;
   thread_current()->priority = calculate_bsd_priority(thread_current());
-  thread_yield();
+  if(!intr_context()) // prj3&4: yield by priority if external interrupt is not running.
+    thread_yield();
 }
 
 /* Returns the current thread's nice value. */

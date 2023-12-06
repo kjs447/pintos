@@ -41,6 +41,9 @@
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
 
+/* prj4: Flag raised if idle thread made. */
+bool idle_made = false;
+
 #ifdef FILESYS
 /* -f: Format the file system? */
 static bool format_filesys;
@@ -117,6 +120,7 @@ main (void)
 
   /* Start thread scheduler and enable interrupts. */
   thread_start ();
+  idle_made = true; // prj4: Now we have multiple thread.
   serial_init_queue ();
   timer_calibrate ();
 

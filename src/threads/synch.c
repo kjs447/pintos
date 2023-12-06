@@ -123,8 +123,8 @@ sema_up (struct semaphore *sema)
                                 struct thread, elem));
   sema->value++;
   intr_set_level (old_level);
-  thread_yield();
-  // prj3: yield by priority
+  if(!intr_context())
+    thread_yield(); // prj3&4: yield by priority if external interrupt is not running.
 }
 
 static void sema_test_helper (void *sema_);
