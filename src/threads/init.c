@@ -106,6 +106,7 @@ main (void)
 #ifdef USERPROG
   tss_init ();
   gdt_init ();
+  init_frame_list(); // prj4
 #endif
 
   /* Initialize interrupt handlers. */
