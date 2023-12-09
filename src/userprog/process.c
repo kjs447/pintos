@@ -20,6 +20,7 @@
 #include "threads/synch.h"
 #include "userprog/syscall.h"
 #include "vm/frame.h" // prj4 : frame table
+#include "vm/supp.h"  // prj4 : supplemental page table
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -181,6 +182,7 @@ process_exit (void)
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pop_frame_pd (pd); // prj4: frame table
+      page_all_free(&cur->supp_table); // prj4: supplemental page table
       pagedir_destroy (pd);
     }
 }
@@ -290,6 +292,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
+  supp_pages_init(&t->supp_table);
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
@@ -386,7 +389,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
                   read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
-              if (!load_segment (t->file, file_page, (void *) mem_page,
+              if (!save_file_segment (t->file, file_page, (void *) mem_page,
                                  read_bytes, zero_bytes, writable))
                 goto done;
             }

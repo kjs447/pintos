@@ -16,6 +16,7 @@
 #include "userprog/process.h"
 #include "threads/malloc.h"
 #include "filesys/file.h"
+#include "vm/supp.h"
 #endif
 
 /* Random value for struct thread's `magic' member.

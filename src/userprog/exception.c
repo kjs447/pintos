@@ -6,6 +6,7 @@
 #include "threads/thread.h"
 #include "userprog/syscall.h"
 #include "threads/vaddr.h"
+#include "vm/supp.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -149,8 +150,12 @@ page_fault (struct intr_frame *f)
 
 #ifdef USERPROG
   /* TODO prj2 : handling user invalid point in page_fault */
-  if(fault_addr < 0x08048000 || is_kernel_vaddr(fault_addr) || not_present)
+  if(fault_addr < 0x08048000 || is_kernel_vaddr(fault_addr))
       exit(-1);
+
+   bool success = load_lazy_segment
+      (&thread_current()->supp_table, pg_round_down(fault_addr));
+   if (success) return;
 #endif
 
   /* Count page faults. */

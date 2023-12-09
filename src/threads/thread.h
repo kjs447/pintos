@@ -8,6 +8,7 @@
 #include <devices/timer.h>
 #include "threads/synch.h" // prj3
 #include <fixed_point.h> // prj3
+#include <hash.h> // prj4
 
 #ifndef USERPROG
 // prj3
@@ -134,6 +135,7 @@ struct thread
    
     int exit_status;                    /* TODO: exit status */
     bool terminated_by_exit;            /* TODO: check if terminated by exit */
+    struct hash supp_table;             /* prj4: supplemental page table */
     uint32_t *pagedir;                  /* Page directory. */
 
 #endif
