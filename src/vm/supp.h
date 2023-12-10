@@ -7,7 +7,8 @@
 #include "threads/pte.h"
 #include "threads/palloc.h"
 #include "filesys/off_t.h"
-#include "frame.h"
+#include "devices/block.h"
+#include "vm/frame.h"
 
 struct file_supp_data {
     struct file *file;
@@ -16,8 +17,13 @@ struct file_supp_data {
     uint32_t zero_bytes;
 };
 
+struct swap_supp_data {
+    block_sector_t sec;
+};
+
 union supp_data {
     struct file_supp_data file;
+    struct swap_supp_data swap;
 };
 
 enum supp_type {
@@ -47,9 +53,11 @@ struct page *page_lookup (struct hash* supp_table, const void *address);
 
 bool save_file_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable);
-bool load_lazy_segment (struct hash* supp_table, uint8_t *upage, bool* alloc_fail);
+bool save_swap_segment (block_sector_t sec, struct hash* supp_table, uint8_t *upage, bool writable);
+bool install_page (struct thread* t, void *upage, void *kpage, bool writable);
+
 void page_free (struct hash* supp_table, struct hash_elem* e);
 void page_all_free (struct hash* supp_table);
-bool install_page (struct thread* t, void *upage, void *kpage, bool writable);
+bool lazy_load_segment (struct hash* supp_table, uint8_t *upage);
 
 #endif

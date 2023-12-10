@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include "vm/frame.h"
 
 /* How to allocate pages. */
 enum palloc_flags
@@ -18,5 +19,6 @@ void *palloc_get_multiple (enum palloc_flags, size_t page_cnt);
 void palloc_free_page (void *);
 void palloc_free_multiple (void *, size_t page_cnt);
 bool page_is_allocated (void *);
+void* palloc_get_page_evict (enum palloc_flags flags);
 
 #endif /* threads/palloc.h */

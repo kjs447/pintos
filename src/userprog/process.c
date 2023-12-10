@@ -493,7 +493,8 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+
+  kpage = palloc_get_page_evict (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (thread_current(), ((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);

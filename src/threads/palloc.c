@@ -180,3 +180,14 @@ page_from_pool (const struct pool *pool, void *page)
 
   return page_no >= start_page && page_no < end_page;
 }
+
+// prj4
+void* palloc_get_page_evict (enum palloc_flags flags) {
+  while (true) {
+    uint8_t* kpage = palloc_get_page(flags);
+    if(kpage) return kpage;
+    else {
+      struct frame* e = evict();
+    }
+  }
+}
