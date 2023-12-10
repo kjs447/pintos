@@ -21,21 +21,16 @@ union supp_data {
 };
 
 enum supp_type {
-    FILE_SUPP,
+    CODE_FILE_SUPP,
     SWAP_SUPP
-};
-
-struct page_content {
-    uint32_t cnt;
-    enum supp_type type;
-    union supp_data data;
-    bool writable;
 };
 
 struct page {
     struct hash_elem hash_elem;
     void* addr;
-    struct page_content* content;
+    enum supp_type type;
+    union supp_data data;
+    bool writable;
 };
 
 void supp_pages_init (struct hash* supp_table);
@@ -52,8 +47,9 @@ struct page *page_lookup (struct hash* supp_table, const void *address);
 
 bool save_file_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable);
-bool load_lazy_segment (struct hash* supp_table, uint8_t *upage);
-void page_free (struct hash_elem *e, void* aux);
+bool load_lazy_segment (struct hash* supp_table, uint8_t *upage, bool* alloc_fail);
+void page_free (struct hash* supp_table, struct hash_elem* e);
 void page_all_free (struct hash* supp_table);
+bool install_page (struct thread* t, void *upage, void *kpage, bool writable);
 
 #endif
