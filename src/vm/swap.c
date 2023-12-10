@@ -1,5 +1,6 @@
 #include "swap.h"
 #include "threads/malloc.h"
+#include "threads/interrupt.h"
 
 void swap_table_init(void) {
     list_init(&swap_table);
@@ -15,6 +16,7 @@ off_less (const struct list_elem *a,
 }
 
 block_sector_t get_swap_slot(void) {
+    enum intr_level old = intr_disable();
     block_sector_t i;
     struct list_elem* p = list_begin(&swap_table);
     for(i = 0; i < block_size(swap_disk); i += SECTOR_PER_PAGE) {
@@ -25,9 +27,10 @@ block_sector_t get_swap_slot(void) {
         struct swap_elem* e = malloc(sizeof(struct swap_elem));
         e->off = i;
         list_insert_ordered(&swap_table, &e->elem, off_less, NULL);
+        intr_set_level (old);
         return i;
     }
-    return 1;
+    ASSERT(0 && "No more swap slot!");
 }
 
 void return_swap_slot(block_sector_t slot) {
