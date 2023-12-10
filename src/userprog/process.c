@@ -493,11 +493,11 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-
-  kpage = palloc_get_page_evict (PAL_USER | PAL_ZERO);
+  struct frame* f;
+  kpage = palloc_get_page_evict (PAL_USER | PAL_ZERO, &f);
   if (kpage != NULL) 
     {
-      success = install_page (thread_current(), ((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      success = install_page (thread_current(), ((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true, f);
       if (success)
         *esp = PHYS_BASE;
       else

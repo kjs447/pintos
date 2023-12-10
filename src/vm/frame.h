@@ -19,8 +19,9 @@ struct frame {
 void init_frame_list(void);
 void push_frame(struct hash* supp_table, uint32_t* pd, void* uaddr, void* kaddr, bool writable);
 void modify_frame(struct frame* fptr, struct hash* supp_table, uint32_t* pd, void*uaddr, void* kaddr, bool writable);
+struct list_elem* pop_frame_elem(struct frame* f);
 void pop_frame_pd(uint32_t* pd);
 struct frame* clock_advance(void);
-struct frame* evict(void);
+void evict(void);
 
 #endif
