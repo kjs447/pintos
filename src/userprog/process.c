@@ -21,6 +21,7 @@
 #include "userprog/syscall.h"
 #include "vm/frame.h" // prj4 : frame table
 #include "vm/supp.h"  // prj4 : supplemental page table
+#include "vm/frame.h" // prj4 : frame table
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -565,26 +566,3 @@ setup_stack (void **esp)
     }
   return success;
 }
-
-/* Adds a mapping from user virtual address UPAGE to kernel
-   virtual address KPAGE to the page table.
-   If WRITABLE is true, the user process may modify the page;
-   otherwise, it is read-only.
-   UPAGE must not already be mapped.
-   KPAGE should probably be a page obtained from the user pool
-   with palloc_get_page().
-   Returns true on success, false if UPAGE is already mapped or
-   if memory allocation fails. */
-/*static bool
-install_page (void *upage, void *kpage, bool writable)
-{
-  struct thread *t = thread_current ();
-
-  /* Verify that there's not already a page at that virtual
-     address, then map our page there. */
-  /*bool success = pagedir_get_page (t->pagedir, upage) == NULL
-          && pagedir_set_page (t->pagedir, upage, kpage, writable);
-  if(success)
-    push_frame(t->pagedir, kpage); // prj4: frame table
-  return success;
-}*/
