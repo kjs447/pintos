@@ -8,7 +8,6 @@
 #include "threads/vaddr.h"
 #include "vm/frame.h"
 #include "vm/supp.h"
-#include "vm/swap.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -114,7 +113,7 @@ kill (struct intr_frame *f)
 }
 
 static bool
-stack_grow (void* fault_addr, void* stack_lower_bound) {
+stack_grow (void* fault_addr, void* stack_lower_bound, bool* alloc_fail) {
    void* start_page = pg_round_down(fault_addr) > stack_lower_bound ?
       pg_round_down(fault_addr) : stack_lower_bound;
    uint8_t *kpage;
@@ -124,14 +123,18 @@ stack_grow (void* fault_addr, void* stack_lower_bound) {
    if(start_page == end_page) exit(-1);
 
    for(void* p = start_page; p < end_page; p += PGSIZE) {
-      kpage = palloc_get_page_evict (PAL_USER | PAL_ZERO);
+      kpage = palloc_get_page (PAL_USER | PAL_ZERO);
       if (kpage != NULL) {
-            success = install_page (thread_current(), p, kpage, true);
+            success = install_page (thread_current(), p, kpage + (p - start_page), true);
             if (!success) {
+               if(alloc_fail)
+                  *alloc_fail = false;
                palloc_free_page (kpage);
                break;
             }
       } else {
+         if(alloc_fail)
+            *alloc_fail = true;
          break;
       }
    }
@@ -184,19 +187,25 @@ page_fault (struct intr_frame *f)
 
 #ifdef USERPROG
   /* TODO prj2 : handling user invalid point in page_fault */
-  if(fault_addr < (void*)0x08048000 || user && is_kernel_vaddr(fault_addr) || !not_present)
+  if(fault_addr < (void*)0x08048000 || is_kernel_vaddr(fault_addr) || !not_present)
       exit(-1);
 
+   //bool alloc_succ;
    // if valid
-   bool success = lazy_load_segment
-      (&thread_current()->supp_table, pg_round_down(fault_addr));
+   bool success = load_lazy_segment
+      (&thread_current()->supp_table, pg_round_down(fault_addr), &alloc_succ);
+   if (success) return;
    
    // stack growth
    // stack limit = 8 MB
-   if(!success && (char*)f->esp >= (char*)PHYS_BASE - (1 << 23) && fault_addr > f->esp - 4096) 
-      success = stack_grow(fault_addr, (char*)PHYS_BASE - (1 << 23));
-
+   if((char*)f->esp >= (char*)PHYS_BASE - (1 << 23) && fault_addr + 4096 > f->esp) 
+      success = stack_grow(fault_addr, (char*)PHYS_BASE - (1 << 23), &alloc_succ);
    if (success) return;
+
+   /*if(!alloc_succ) {
+      
+   }*/
+
    exit(-1);
 #endif
 
