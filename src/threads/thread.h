@@ -135,6 +135,7 @@ struct thread
    
     int exit_status;                    /* TODO: exit status */
     bool terminated_by_exit;            /* TODO: check if terminated by exit */
+    void* old_stack_pg;
     struct hash supp_table;             /* prj4: supplemental page table */
     uint32_t *pagedir;                  /* Page directory. */
 

@@ -21,6 +21,7 @@ struct swap_supp_data {
     block_sector_t sec;
 };
 
+
 union supp_data {
     struct file_supp_data file;
     struct swap_supp_data swap;
@@ -28,7 +29,8 @@ union supp_data {
 
 enum supp_type {
     CODE_FILE_SUPP,
-    SWAP_SUPP
+    SWAP_SUPP,
+    ANON_SUPP
 };
 
 struct page {
@@ -51,13 +53,15 @@ bool page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *au
 or a null pointer if no such page exists. Reference: pintos manual */
 struct page *page_lookup (struct hash* supp_table, const void *address);
 
+bool save_anon_segment(uint8_t* upage, bool writable);
+
 bool save_file_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable);
 bool save_swap_segment (block_sector_t sec, struct hash* supp_table, uint8_t *upage, bool writable);
-bool install_page (struct thread* t, void *upage, void *kpage, bool writable);
+bool install_page (struct thread* t, struct page* p, void *kpage);
 
 void page_free (struct hash* supp_table, struct hash_elem* e);
 void page_all_free (struct hash* supp_table);
-bool lazy_load_segment (struct hash* supp_table, uint8_t *upage);
+bool lazy_load_segment (struct thread* t, uint8_t *upage);
 
 #endif

@@ -4,24 +4,18 @@
 #include "threads/pte.h"
 #include <stdbool.h>
 #include <list.h>
+#include "threads/palloc.h"
 
 #define ENTRYNUM (1 << PTBITS)
 
 struct frame {
     struct list_elem elem;
-    uint32_t* pd;
-    void* uaddr;
+    struct page* page;
     void* kaddr;
-    struct hash* supp_table;
-    bool writable;
 };
 
 void init_frame_list(void);
-void push_frame(struct hash* supp_table, uint32_t* pd, void* uaddr, void* kaddr, bool writable);
-void modify_frame(struct frame* fptr, struct hash* supp_table, uint32_t* pd, void*uaddr, void* kaddr, bool writable);
-struct list_elem* pop_frame_elem(struct frame* f);
-void pop_frame_pd(uint32_t* pd);
-struct frame* clock_advance(void);
-void evict(void);
+struct frame* push_frame(struct page* page, void* kaddr);
+struct frame* pop_front_frame_elem(void);
 
 #endif

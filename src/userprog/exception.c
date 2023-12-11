@@ -113,7 +113,7 @@ kill (struct intr_frame *f)
 }
 
 static bool
-stack_grow (void* fault_addr, void* stack_lower_bound, bool* alloc_fail) {
+stack_grow (void* fault_addr, void* stack_lower_bound) {
    void* start_page = pg_round_down(fault_addr) > stack_lower_bound ?
       pg_round_down(fault_addr) : stack_lower_bound;
    uint8_t *kpage;
@@ -125,16 +125,14 @@ stack_grow (void* fault_addr, void* stack_lower_bound, bool* alloc_fail) {
    for(void* p = start_page; p < end_page; p += PGSIZE) {
       kpage = palloc_get_page (PAL_USER | PAL_ZERO);
       if (kpage != NULL) {
-            success = install_page (thread_current(), p, kpage + (p - start_page), true);
+            save_anon_segment(p, true);
+            struct page* pg = page_lookup(&thread_current()->supp_table, p);
+            success = install_page (thread_current(), pg, kpage + (p - start_page));
             if (!success) {
-               if(alloc_fail)
-                  *alloc_fail = false;
                palloc_free_page (kpage);
                break;
             }
       } else {
-         if(alloc_fail)
-            *alloc_fail = true;
          break;
       }
    }
@@ -192,19 +190,15 @@ page_fault (struct intr_frame *f)
 
    //bool alloc_succ;
    // if valid
-   bool success = load_lazy_segment
-      (&thread_current()->supp_table, pg_round_down(fault_addr), &alloc_succ);
+   bool success = lazy_load_segment
+      (thread_current(), pg_round_down(fault_addr));
    if (success) return;
    
    // stack growth
    // stack limit = 8 MB
    if((char*)f->esp >= (char*)PHYS_BASE - (1 << 23) && fault_addr + 4096 > f->esp) 
-      success = stack_grow(fault_addr, (char*)PHYS_BASE - (1 << 23), &alloc_succ);
+      success = stack_grow(fault_addr, (char*)PHYS_BASE - (1 << 23));
    if (success) return;
-
-   /*if(!alloc_succ) {
-      
-   }*/
 
    exit(-1);
 #endif

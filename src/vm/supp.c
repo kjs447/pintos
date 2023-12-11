@@ -43,11 +43,25 @@ page_lookup (struct hash* supp_table, const void *address)
     return e != NULL ? hash_entry (e, struct page, hash_elem) : NULL;
 }
 
+bool save_anon_segment(uint8_t* upage, bool writable) {
+    ASSERT (pg_ofs (upage) == 0);
+    struct hash* supp_table = &thread_current()->supp_table;
+    struct page* pg = malloc(sizeof(struct page));
+
+    pg->type = ANON_SUPP;
+    pg->addr = upage;
+    pg->writable = writable;
+
+    hash_insert(supp_table, &pg->hash_elem);
+
+    return true;
+}
+
 bool
 save_file_segment(struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) {
     ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
-    ASSERT (pg_ofs (upage) == 0);
+    
     ASSERT (ofs % PGSIZE == 0);
 
     struct hash* supp_table = &thread_current()->supp_table;
@@ -109,15 +123,15 @@ save_file_segment(struct file *file, off_t ofs, uint8_t *upage,
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
 bool
-install_page (struct thread* t, void *upage, void *kpage, bool writable)
+install_page (struct thread* t, struct page* p, void *kpage)
 {
     
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
-  bool success = pagedir_get_page (t->pagedir, upage) == NULL
-          && pagedir_set_page (t->pagedir, upage, kpage, writable);
+  bool success = pagedir_get_page (t->pagedir, p->addr) == NULL
+          && pagedir_set_page (t->pagedir, p->addr, kpage, p->writable);
   if(success) {
-        push_frame(&t->supp_table, t->pagedir, upage, kpage, writable);
+        push_frame(p, kpage);
   }
   return success;
 }
@@ -137,13 +151,12 @@ install_page (struct thread* t, void *upage, void *kpage, bool writable)
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
 static bool
-lazy_code_segment (struct hash* supp_table, struct page* pg, uint8_t *upage, void *kpage) {
-    ASSERT(upage >= 0x8048000);
+lazy_code_segment (struct page* pg, void *kpage) {
+    ASSERT(pg->addr >= 0x8048000);
     ASSERT(pg->type == CODE_FILE_SUPP);
 
     struct thread* t = thread_current();
 
-    ASSERT(pg->type == CODE_FILE_SUPP);
     uint32_t read_bytes = pg->data.file.read_bytes;
     uint32_t zero_bytes = pg->data.file.zero_bytes;
     off_t ofs = pg->data.file.ofs;
@@ -151,7 +164,7 @@ lazy_code_segment (struct hash* supp_table, struct page* pg, uint8_t *upage, voi
     bool writable = pg->writable;
 
     ASSERT ((read_bytes + zero_bytes) == PGSIZE);
-    ASSERT (pg_ofs (upage) == 0);
+    ASSERT (pg_ofs (pg->addr) == 0);
     ASSERT (ofs % PGSIZE == 0);
 
     file_seek (file, ofs);
@@ -165,14 +178,14 @@ lazy_code_segment (struct hash* supp_table, struct page* pg, uint8_t *upage, voi
     memset (kpage + read_bytes, 0, zero_bytes);
 
     /* Add the page to the process's address space. */
-    if (success && !install_page (t, upage, kpage, writable)) {
+    if (success && !install_page (t, pg, kpage)) {
         success = false;
     }
 
     if(!success) {
         palloc_free_page (kpage);
     } else {
-        page_free (supp_table, &pg->hash_elem);
+        page_free (&t->supp_table, &pg->hash_elem);
     }
     return success;
 }
@@ -195,7 +208,7 @@ bool save_swap_segment (block_sector_t sec, struct hash* supp_table, uint8_t *up
 }
 
 static bool
-lazy_swap_segment (struct hash* supp_table, struct page* pg, uint8_t *upage, void* kpage) {
+lazy_swap_segment (struct page* pg, void* kpage) {
     ASSERT(pg->type == SWAP_SUPP);
     block_sector_t sec = pg->data.swap.sec;
     for(block_sector_t i = 0; i < SECTOR_PER_PAGE; i++) {
@@ -207,15 +220,16 @@ lazy_swap_segment (struct hash* supp_table, struct page* pg, uint8_t *upage, voi
     }
 
     struct thread* t = thread_current();
+
     bool success = true;
         /* Add the page to the process's address space. */
-    if (!install_page (t, upage, kpage, pg->writable)) {
+    if (!install_page (t, pg->addr, kpage)) {
         success = false;
     }
     
     if(success) {
         return_swap_slot(sec);
-        page_free (supp_table, &pg->hash_elem);
+        page_free (&t->supp_table, &pg->hash_elem);
     } else {
         palloc_free_page (kpage);
     }
@@ -223,16 +237,16 @@ lazy_swap_segment (struct hash* supp_table, struct page* pg, uint8_t *upage, voi
     return success;
 }
 
-bool lazy_load_segment (struct hash* supp_table, uint8_t *upage) {
-    struct page* pg = page_lookup(supp_table, upage);
+bool lazy_load_segment (struct thread* t, uint8_t *upage) {
+    struct page* pg = page_lookup(&t->supp_table, upage);
     if(!pg) return false;
     void *kpage = palloc_get_page_evict(PAL_USER);
 
     switch (pg->type) {
         case CODE_FILE_SUPP:
-            return lazy_code_segment(supp_table, pg, upage, kpage);
+            return lazy_code_segment(pg, kpage);
         case SWAP_SUPP:
-            return lazy_swap_segment(supp_table, pg, upage, kpage);
+            return lazy_swap_segment(pg, kpage);
     }
 }
 

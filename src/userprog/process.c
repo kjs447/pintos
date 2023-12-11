@@ -181,7 +181,6 @@ process_exit (void)
          that's been freed (and cleared). */
       cur->pagedir = NULL;
       pagedir_activate (NULL);
-      pop_frame_pd (pd); // prj4: frame table
       page_all_free(&cur->supp_table); // prj4: supplemental page table
       pagedir_destroy (pd);
     }
@@ -403,6 +402,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (!setup_stack (esp))
     goto done;
 
+  t->old_stack_pg = (char*)PHYS_BASE - PGSIZE;
+
   /* TODO2: construct stack */
   /* argv's copy*/
   memcpy(argv_head = (*(char**)esp -= tk_total_len), str, tk_total_len);
@@ -437,10 +438,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   }
   return success;
 }
-
-/* load() helpers. */
-
-static bool install_page (void *upage, void *kpage, bool writable);
 
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -501,7 +498,7 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
 
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
-static bool
+/*static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
@@ -512,18 +509,18 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
-      /* Calculate how to fill this page.
+       Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
-         and zero the final PAGE_ZERO_BYTES bytes. */
+         and zero the final PAGE_ZERO_BYTES bytes. 
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      /* Get a page of memory. */
+       Get a page of memory. 
       uint8_t *kpage = palloc_get_page (PAL_USER);
       if (kpage == NULL)
         return false;
 
-      /* Load this page. */
+       Load this page. 
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           palloc_free_page (kpage);
@@ -531,20 +528,20 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
+       Add the page to the process's address space. 
+      if (!install_page (thread_current(), upage, kpage, writable)) 
         {
           palloc_free_page (kpage);
           return false; 
         }
 
-      /* Advance. */
+       Advance. 
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
     }
   return true;
-}
+}*/
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
@@ -555,10 +552,12 @@ setup_stack (void **esp)
   bool success = false;
 
   struct frame* f;
-  kpage = palloc_get_page_evict (PAL_USER | PAL_ZERO, &f);
+  kpage = palloc_get_page_evict (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
-      success = install_page (thread_current(), ((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      save_anon_segment(((uint8_t *) PHYS_BASE) - PGSIZE, true);
+      struct page* p = page_lookup(&thread_current()->supp_table, ((uint8_t *) PHYS_BASE) - PGSIZE);
+      success = install_page (thread_current(), p, kpage);
       if (success)
         *esp = PHYS_BASE;
       else
@@ -576,16 +575,16 @@ setup_stack (void **esp)
    with palloc_get_page().
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
-static bool
+/*static bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
-  bool success = pagedir_get_page (t->pagedir, upage) == NULL
+  /*bool success = pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable);
   if(success)
     push_frame(t->pagedir, kpage); // prj4: frame table
   return success;
-}
+}*/

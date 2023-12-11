@@ -10,6 +10,12 @@
 #include "threads/loader.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/interrupt.h"
+#include "vm/frame.h"
+#include "vm/swap.h"
+#include "vm/supp.h"
+#include "userprog/pagedir.h"
+#include "threads/malloc.h"
 
 /* Page allocator.  Hands out memory in page-size (or
    page-multiple) chunks.  See malloc.h for an allocator that
@@ -181,13 +187,40 @@ page_from_pool (const struct pool *pool, void *page)
   return page_no >= start_page && page_no < end_page;
 }
 
+
+static void* evict(enum palloc_flags flag) {
+    enum intr_level old = intr_disable();
+    struct thread* t = thread_current();
+    struct frame* victim = pop_front_frame_elem();
+    block_sector_t off = get_swap_slot();
+    struct block* block = swap_disk;
+    char* buf = victim->kaddr;
+    for(int i = 0; i < 8; i++) {
+        block_write(block, off, buf);
+
+        /* advance */
+        off++;
+        buf += 512;
+    }
+    buf = victim->kaddr;
+
+    pagedir_clear_page(t->pagedir, victim->page->addr);
+    save_swap_segment(off, &t->supp_table, victim->page->addr, victim->page->writable);
+    free(victim);
+
+    void* res = palloc_get_page(flag);
+    intr_set_level(old);
+
+    return res;
+}
+
 // prj4
 void* palloc_get_page_evict (enum palloc_flags flags) {
   while (true) {
     uint8_t* kpage = palloc_get_page(flags);
     if(kpage) return kpage;
     else {
-      struct frame* e = evict();
+      return evict(flags);
     }
   }
 }
